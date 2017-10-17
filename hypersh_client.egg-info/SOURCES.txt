@@ -1,0 +1,7 @@
+setup.py
+hypersh_client/main_test.py
+hypersh_client.egg-info/PKG-INFO
+hypersh_client.egg-info/SOURCES.txt
+hypersh_client.egg-info/dependency_links.txt
+hypersh_client.egg-info/requires.txt
+hypersh_client.egg-info/top_level.txt
