@@ -30,6 +30,7 @@ class HypershClient(object):
 
         self.hyper_endpoint = ENPOINTS[region]
         self.hyper_auth = AWS4Auth(ACCESS_KEY, SECRET, "us-west-1", "hyper")
+        self.session = requests.Session()
 
     @classmethod
     def _get_headers(cls):
@@ -39,8 +40,8 @@ class HypershClient(object):
         headers['content-type'] = 'application/json'
         return headers
 
-    def get_containers(self, state='running', image=None):
-        containers_list_resp = requests.get(
+    def get_containers(self, state=None, image=None):
+        containers_list_resp = self.session.get(
             self.hyper_endpoint + '/containers/json?all=1',
             auth=self.hyper_auth, headers=self._get_headers()
         )
@@ -59,19 +60,16 @@ class HypershClient(object):
             {'id': di['Id'], 'name': di['Names'][0].lstrip('/'), 'state': di['State'], 'image': di['Image']}
             for di in containers
         ]
-
-        #container_ids = [di['Id'] for di in containers]
         return True, containers
 
     def remove_all_containers_with_image(self, image):
-        success, containers = self.get_containers()
+        success, containers = self.get_containers(image==image)
         if not success:
             return False
         for di in containers:
-            if di['image'] == image:
-                success = self.remove_container(di['id'])
-                if not success:
-                    print('warning: failed to remove container ' + di['id'])
+            success = self.remove_container(di['id'])
+            if not success:
+                print('warning: failed to remove container ' + di['id'])
         return True
 
     def remove_container(self, container_id):
@@ -79,7 +77,7 @@ class HypershClient(object):
         #     hyper_endpoint + '/containers/%s/stop' % id,
         #     auth=hyper_auth, headers=get_headers()
         # )
-        delete_resp = requests.delete(
+        delete_resp = self.session.delete(
             self.hyper_endpoint + ('/containers/%s' % container_id) + '?v=1&force=1',
             auth=self.hyper_auth, headers=self._get_headers()
         )
@@ -96,12 +94,6 @@ class HypershClient(object):
         if name is not None:
             query_str = '?name=' + name
 
-        # some other options:
-        # hyper_container_create_dict = {
-        #     "Env": ["FOO=bar", "BAZ=quux"],
-        #     "Cmd": ["sh"],
-        #     "Image": "ubuntu"
-        # }
         post_dict = {'Image': image, 'Labels': {'sh_hyper_instancetype': size}}
         if name:
             post_dict['Hostname'] = name
@@ -113,10 +105,13 @@ class HypershClient(object):
             post_dict['HostConfig'] = {}
             post_dict['HostConfig']['PortBindings'] = {"%s/tcp" % p: [{ "HostPort": str(p)}] for p in tcp_ports}
 
-        create_container_resp = requests.post(
+        auth = self.hyper_auth
+        headers = self._get_headers()
+        
+        create_container_resp = self.session.post(
             self.hyper_endpoint + '/containers/create' + query_str,
             json=post_dict, # e.g. 'scrapinghub/splash'
-            auth=self.hyper_auth, headers=self._get_headers()
+            auth=auth, headers=headers
         )
         if create_container_resp.status_code not in (200, 201, 204, 304):
             print('/containers/create failed, status: %s  -  %s' % (create_container_resp.status_code, create_container_resp.content.decode()))
@@ -127,7 +122,7 @@ class HypershClient(object):
         return success, container_id
 
     def _start_container(self, container_id):  # not sure if this is necessary?
-        start_container_resp = requests.post(
+        start_container_resp = self.session.post(
             self.hyper_endpoint + '/containers/%s/start' % container_id,
             auth=self.hyper_auth, headers=self._get_headers(),
         )
@@ -137,7 +132,7 @@ class HypershClient(object):
         return start_container_resp.status_code in (200, 201, 204, 304)
 
     def get_fips(self):
-        fips_resp = requests.get(
+        fips_resp = self.session.get(
             self.hyper_endpoint + '/fips', auth=self.hyper_auth,
             headers=self._get_headers()
         )
@@ -147,7 +142,7 @@ class HypershClient(object):
         return True, fips
 
     def attach_fip(self, container_id, fip):
-        attach_resp = requests.post(
+        attach_resp = self.session.post(
             self.hyper_endpoint + '/fips/attach?ip=%(fip)s&container=%(container_id)s' % {
                 'fip': fip,
                 'container_id': container_id
