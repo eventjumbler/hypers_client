@@ -9,7 +9,7 @@ INSTALL_REQUIREMENTS = [
 
 setup(
     name = "hypersh-client",
-    version = "0.0.11",
+    version = "0.0.12",
     author = "Ross Rochford",
     packages=['hypersh_client'],
     install_requires=INSTALL_REQUIREMENTS,    
