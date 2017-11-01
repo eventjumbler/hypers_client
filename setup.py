@@ -19,7 +19,7 @@ for item in requirements:
 
 setup(
     name="hypersh-client",
-    version="0.0.13",
+    version="0.1.0",
     author="Ross Rochford",
     license="MIT",
     description="Hypersh python client",

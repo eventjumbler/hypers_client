@@ -1,4 +1,3 @@
 *.pyc
 venv
-.idea
-hypersh_client/.idea
+**/.idea
