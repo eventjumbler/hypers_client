@@ -63,7 +63,7 @@ class HypershClient(object):
         return True, containers
 
     def remove_all_containers_with_image(self, image):
-        success, containers = self.get_containers(image==image)
+        success, containers = self.get_containers(image == image)
         if not success:
             return False
         for di in containers:
@@ -86,7 +86,6 @@ class HypershClient(object):
         return True
 
     def create_container(self, image, name=None, size='M2', environment_variables=None, cmd=None, tcp_ports=None):
-
         environment_variables = environment_variables or {}
         tcp_ports = tcp_ports or []
 
@@ -103,14 +102,14 @@ class HypershClient(object):
             post_dict['Cmd'] = cmd
         if tcp_ports:
             post_dict['HostConfig'] = {}
-            post_dict['HostConfig']['PortBindings'] = {"%s/tcp" % p: [{ "HostPort": str(p)}] for p in tcp_ports}
+            post_dict['HostConfig']['PortBindings'] = {"%s/tcp" % p: [{"HostPort": str(p)}] for p in tcp_ports}
 
         auth = self.hyper_auth
         headers = self._get_headers()
-        
+
         create_container_resp = self.session.post(
             self.hyper_endpoint + '/containers/create' + query_str,
-            json=post_dict, # e.g. 'scrapinghub/splash'
+            json=post_dict,  # e.g. 'scrapinghub/splash'
             auth=auth, headers=headers
         )
         if create_container_resp.status_code not in (200, 201, 204, 304):
@@ -152,4 +151,3 @@ class HypershClient(object):
         if attach_resp.status_code not in (200, 201):
             return False
         return True
-
