@@ -120,7 +120,7 @@ class HypershClient(object):
             self.hyper_endpoint + '/fips', auth=self.hyper_auth,
             headers=self._get_headers()
         )
-        _LOG.debug(fips_resp)
+        _LOG.debug(fips_resp.text)
         if fips_resp.status_code not in (200, 201):
             return False, None
         fips = [di['fip'] for di in fips_resp.json()]
@@ -134,15 +134,17 @@ class HypershClient(object):
             },
             auth=self.hyper_auth, headers=self._get_headers()
         )
-        _LOG.debug(attach_resp)
+        _LOG.debug(attach_resp.text)
         if attach_resp.status_code not in (200, 201):
             return False
         return True
 
     def inspect_container(self, container_id):
         inspect_response = self.session.get(
-            self.hyper_endpoint + 'containers/%s/json' % container_id,
+            self.hyper_endpoint + '/containers/%s/json' % container_id,
             auth=self.hyper_auth, headers=self._get_headers()
         )
-        _LOG.debug(inspect_response)
-        return inspect_response
+        _LOG.debug(inspect_response.text)
+        if inspect_response.status_code not in (200, 201):
+            return False, None
+        return True, inspect_response.json()
