@@ -1,46 +1,46 @@
-#!/usr/bin/python
-
 import logging
+from abc import ABC, abstractmethod
+
 import requests
-import datetime
-import time
-import os
-from uuid import uuid4
 
-from ..aws4auth2.aws4auth_hypersh import AWS4Auth
-
-_ENDPOINTS = {
-    'us-west-1': "https://us-west-1.hyper.sh/v1.23",
-    'eu-central-1': "https://eu-central-1.hyper.sh/v1.23",
-}
 _LOG = logging.getLogger(__name__)
 
 
-class HypershClient(object):
+def factory(mode, endpoint='', access_key='', secret_key='', region=''):
+    from docker_client import DockerClient
+    from hypersh import HypershClient
+    if mode == DockerClient.identifier():
+        return DockerClient(endpoint=endpoint)
+    if mode == HypershClient.identifier():
+        return HypershClient(endpoint=endpoint, access_key=access_key, secret_key=secret_key, region=region)
+    raise TypeError('Not found docker client for provider %s' % mode)
 
-    def __init__(self, access_key=os.environ['HYPERSH_ACCESS_KEY'], secret_key=os.environ['HYPERSH_SECRET'], region=os.environ['HYPERSH_REGION']):
-        self.hyper_endpoint = _ENDPOINTS[region]
-        if not self.hyper_endpoint:
-            raise Exception('invalid region: %s' % region)
-        self.hyper_auth = AWS4Auth(access_key, secret_key, region, "hyper")
+
+class IDockerProvider(ABC):
+
+    def __init__(self, endpoint):
+        self.endpoint = endpoint
         self.session = requests.Session()
+        super().__init__()
 
-    @classmethod
-    def _get_headers(cls):
-        now = datetime.datetime.utcnow()
+    @abstractmethod
+    def _init_header(self):
         headers = {}
-        headers['x-hyper-date'] = now.strftime('%Y%m%dT%H%M%SZ')
         headers['content-type'] = 'application/json'
         return headers
 
+    @abstractmethod
+    def _get_auth(self):
+        pass
+
     def get_containers(self, state=None, image=None):
         containers_list_resp = self.session.get(
-            self.hyper_endpoint + '/containers/json?all=1',
-            auth=self.hyper_auth, headers=self._get_headers()
+            self.endpoint + '/containers/json?all=1',
+            auth=self._get_auth(), headers=self._init_header()
         )
         _LOG.debug(containers_list_resp)
         if containers_list_resp.status_code not in (200, 201):
-            _LOG.error('GET /containers/ failed, status: %s  -  %s' % (containers_list_resp.status_code, containers_list_resp.content.decode()))
+            _LOG.error('GET /containers/ failed, status: %s  -  %s', containers_list_resp.status_code, containers_list_resp.content.decode())
             return False, None
         containers = [di for di in containers_list_resp.json()]
         if state:
@@ -64,8 +64,8 @@ class HypershClient(object):
 
     def remove_container(self, container_id):
         delete_resp = self.session.delete(
-            self.hyper_endpoint + ('/containers/%s' % container_id) + '?v=1&force=1',
-            auth=self.hyper_auth, headers=self._get_headers()
+            self.endpoint + ('/containers/%s' % container_id) + '?v=1&force=1',
+            auth=self._get_auth(), headers=self._init_header()
         )
         _LOG.debug(delete_resp)
         if delete_resp.status_code not in (200, 201):
@@ -88,10 +88,10 @@ class HypershClient(object):
             post_dict['HostConfig']['PortBindings'] = {"%s/tcp" % p: [{"HostPort": str(p)}] for p in tcp_ports}
         if links:
             post_dict['HostConfig']['Links'] = links
-        auth = self.hyper_auth
-        headers = self._get_headers()
+        auth = self._get_auth()
+        headers = self._init_header()
         create_container_resp = self.session.post(
-            self.hyper_endpoint + '/containers/create' + query_str,
+            self.endpoint + '/containers/create' + query_str,
             json=post_dict,
             auth=auth, headers=headers
         )
@@ -106,43 +106,19 @@ class HypershClient(object):
 
     def start_container(self, container_id):  # not sure if this is necessary?
         start_container_resp = self.session.post(
-            self.hyper_endpoint + '/containers/%s/start' % container_id,
-            auth=self.hyper_auth, headers=self._get_headers()
+            self.endpoint + '/containers/%s/start' % container_id,
+            auth=self._get_auth(), headers=self._init_header()
         )
         _LOG.debug(start_container_resp)
         # 204 = no error, 304 = container already started
         if start_container_resp.status_code not in (200, 201, 204, 304):
-            _LOG.error('/containers/%s/start failed: %s' % (container_id, start_container_resp.content.decode()))
+            _LOG.error('/containers/%s/start failed: %s', container_id, start_container_resp.content.decode())
         return start_container_resp.status_code in (200, 201, 204, 304)
-
-    def get_fips(self):
-        fips_resp = self.session.get(
-            self.hyper_endpoint + '/fips', auth=self.hyper_auth,
-            headers=self._get_headers()
-        )
-        _LOG.debug(fips_resp.text)
-        if fips_resp.status_code not in (200, 201):
-            return False, None
-        fips = [di['fip'] for di in fips_resp.json()]
-        return True, fips
-
-    def attach_fip(self, container_id, fip):
-        attach_resp = self.session.post(
-            self.hyper_endpoint + '/fips/attach?ip=%(fip)s&container=%(container_id)s' % {
-                'fip': fip,
-                'container_id': container_id
-            },
-            auth=self.hyper_auth, headers=self._get_headers()
-        )
-        _LOG.debug(attach_resp.text)
-        if attach_resp.status_code not in (200, 201):
-            return False
-        return True
 
     def inspect_container(self, container_id):
         inspect_response = self.session.get(
-            self.hyper_endpoint + '/containers/%s/json' % container_id,
-            auth=self.hyper_auth, headers=self._get_headers()
+            self.endpoint + '/containers/%s/json' % container_id,
+            auth=self._get_auth(), headers=self._init_header()
         )
         _LOG.debug(inspect_response.text)
         if inspect_response.status_code not in (200, 201):

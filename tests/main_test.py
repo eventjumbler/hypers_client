@@ -1,7 +1,7 @@
 import time
 from uuid import uuid4
 
-from main.hypersh2 import HypershClient
+from hypersh_client.main.hypersh import HypershClient
 
 
 if __name__ == '__main__':

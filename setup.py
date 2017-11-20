@@ -29,11 +29,12 @@ for item in requirements:
         _REQUIRES.append(__normalize(req) if has_link else req)
 
 setup(
-    name="hypersh-client",
+    name="dockerrest",
     version="0.1.0",
-    author="Ross Rochford",
+    author='ross|zero',
+    author_email='digiology@gmail.com|sontt246@gmail.com',
     license="MIT",
-    description="Hypersh python client",
+    description="Docker REST client with hypersh and docker",
     packages=find_packages(exclude=['tests']),
     install_requires=_REQUIRES,
     dependency_links=_LINKS
