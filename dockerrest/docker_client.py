@@ -1,6 +1,8 @@
 import logging
+
 import requests
-from docker_provider import IDockerProvider
+
+from .docker_provider import IDockerProvider
 
 _LOG = logging.getLogger(__name__)
 

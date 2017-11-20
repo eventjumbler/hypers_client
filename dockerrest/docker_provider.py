@@ -7,8 +7,8 @@ _LOG = logging.getLogger(__name__)
 
 
 def factory(mode, endpoint='', access_key='', secret_key='', region=''):
-    from docker_client import DockerClient
-    from hypersh import HypershClient
+    from .docker_client import DockerClient
+    from .hypersh import HypershClient
     if mode == DockerClient.identifier():
         return DockerClient(endpoint=endpoint)
     if mode == HypershClient.identifier():

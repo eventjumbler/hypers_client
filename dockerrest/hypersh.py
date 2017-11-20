@@ -4,8 +4,8 @@ import datetime
 import logging
 import os
 
-from aws4auth2.aws4auth_hypersh import AWS4Auth
-from docker_client import IDockerProvider
+from .aws4auth2.aws4auth_hypersh import AWS4Auth
+from .docker_client import IDockerProvider
 
 _LOG = logging.getLogger(__name__)
 

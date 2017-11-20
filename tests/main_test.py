@@ -1,7 +1,7 @@
 import time
 from uuid import uuid4
 
-from hypersh_client.main.hypersh import HypershClient
+from dockerrest.hypersh import HypershClient
 
 
 if __name__ == '__main__':

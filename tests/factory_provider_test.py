@@ -1,7 +1,7 @@
 import unittest
-from hypersh_client.main.docker_provider import factory, IDockerProvider
-from hypersh_client.main.docker_client import DockerClient
-from hypersh_client.main.hypersh import HypershClient
+from dockerrest.docker_provider import factory, IDockerProvider
+from dockerrest.docker_client import DockerClient
+from dockerrest.hypersh import HypershClient
 
 
 class TestDockerProvider(unittest.TestCase):
