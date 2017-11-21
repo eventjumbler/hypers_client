@@ -7,6 +7,7 @@ _LOG = logging.getLogger(__name__)
 
 
 def factory(mode, endpoint='', access_key='', secret_key='', region=''):
+    _LOG.info('Mode: %s | Endpoint: %s', mode, endpoint)
     from .docker_client import DockerClient
     from .hypersh import HypershClient
     if mode == DockerClient.identifier():
@@ -34,11 +35,12 @@ class IDockerProvider(ABC):
         pass
 
     def get_containers(self, state=None, image=None):
+        _LOG.info('List containers by state %s, image %s', state, image)
         containers_list_resp = self.session.get(
             self.endpoint + '/containers/json?all=1',
             auth=self._get_auth(), headers=self._init_header()
         )
-        _LOG.debug(containers_list_resp)
+        self._debug(containers_list_resp)
         if containers_list_resp.status_code not in (200, 201):
             _LOG.error('GET /containers/ failed, status: %s  -  %s', containers_list_resp.status_code, containers_list_resp.content.decode())
             return False, None
@@ -54,6 +56,7 @@ class IDockerProvider(ABC):
         return True, containers
 
     def remove_all_containers_with_image(self, image):
+        _LOG.info('Remove Container from image: %s', image)
         success, containers = self.get_containers(image == image)
         if not success:
             return False
@@ -63,16 +66,18 @@ class IDockerProvider(ABC):
         return True
 
     def remove_container(self, container_id):
+        _LOG.info('Remove Container: %s', container_id)
         delete_resp = self.session.delete(
             self.endpoint + ('/containers/%s' % container_id) + '?v=1&force=1',
             auth=self._get_auth(), headers=self._init_header()
         )
-        _LOG.debug(delete_resp)
+        self._debug(delete_resp)
         if delete_resp.status_code not in (200, 201):
             return False
         return True
 
     def create_container(self, image, name=None, size='M2', environment_variables=None, cmd=None, tcp_ports=None, links=[]):
+        _LOG.info('Create Container: Image %s - Name %s', image, name)
         environment_variables = environment_variables or {}
         tcp_ports = tcp_ports or []
         query_str = '?name=' + name if name else ''
@@ -95,7 +100,7 @@ class IDockerProvider(ABC):
             json=post_dict,
             auth=auth, headers=headers
         )
-        _LOG.debug(create_container_resp)
+        self._debug(create_container_resp)
         if create_container_resp.status_code not in (200, 201, 204, 304):
             _LOG.error('/containers/create failed, status: %s  -  %s', create_container_resp.status_code, create_container_resp.content.decode())
             return False, None
@@ -105,22 +110,28 @@ class IDockerProvider(ABC):
         return success, container_id
 
     def start_container(self, container_id):  # not sure if this is necessary?
+        _LOG.info('Start Container: %s', container_id)
         start_container_resp = self.session.post(
             self.endpoint + '/containers/%s/start' % container_id,
             auth=self._get_auth(), headers=self._init_header()
         )
-        _LOG.debug(start_container_resp)
+        self._debug(start_container_resp)
         # 204 = no error, 304 = container already started
         if start_container_resp.status_code not in (200, 201, 204, 304):
             _LOG.error('/containers/%s/start failed: %s', container_id, start_container_resp.content.decode())
         return start_container_resp.status_code in (200, 201, 204, 304)
 
     def inspect_container(self, container_id):
+        _LOG.info('Inspect Container: %s', container_id)
         inspect_response = self.session.get(
             self.endpoint + '/containers/%s/json' % container_id,
             auth=self._get_auth(), headers=self._init_header()
         )
-        _LOG.debug(inspect_response.text)
+        self._debug(inspect_response)
         if inspect_response.status_code not in (200, 201):
             return False, None
         return True, inspect_response.json()
+
+    def _debug(self, response):
+        _LOG.debug(response.status_code)
+        _LOG.debug(response.text)

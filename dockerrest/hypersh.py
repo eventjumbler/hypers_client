@@ -40,17 +40,19 @@ class HypershClient(IDockerProvider):
         return 'hypersh'
 
     def get_fips(self):
+        _LOG.info('Get List IPs')
         fips_resp = self.session.get(
             self.endpoint + '/fips', auth=self._get_auth(),
             headers=self._init_header()
         )
-        _LOG.debug(fips_resp.text)
+        self._debug(fips_resp)
         if fips_resp.status_code not in (200, 201):
             return False, None
         fips = [di['fip'] for di in fips_resp.json()]
         return True, fips
 
     def attach_fip(self, container_id, fip):
+        _LOG.info('Attach IP %s to container %s', fip, container_id)
         attach_resp = self.session.post(
             self.endpoint + '/fips/attach?ip=%(fip)s&container=%(container_id)s' % {
                 'fip': fip,
@@ -58,7 +60,7 @@ class HypershClient(IDockerProvider):
             },
             auth=self._get_auth(), headers=self._init_header()
         )
-        _LOG.debug(attach_resp.text)
+        self._debug(attach_resp)
         if attach_resp.status_code not in (200, 201):
             return False
         return True
