@@ -85,7 +85,7 @@ class IDockerProvider(ABC):
         if name:
             post_dict['Hostname'] = name
         if environment_variables:
-            post_dict['Env'] = [k + '=' + v.decode().strip() for (k, v) in environment_variables.items()]
+            post_dict['Env'] = ['%s=%s' % (k, v) for (k, v) in environment_variables.items()]
         if cmd:
             post_dict['Cmd'] = cmd
         post_dict['HostConfig'] = {}
