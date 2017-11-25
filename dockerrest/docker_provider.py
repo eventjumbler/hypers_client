@@ -34,6 +34,40 @@ class IDockerProvider(ABC):
     def _get_auth(self):
         pass
 
+    def pull_image(self, image, tag='latest', fail_if_exist=False):
+        _LOG.info('Pull image %s, tag %s', image, tag)
+        is_available = self.check_image_available(image, tag)
+        if not is_available:
+            if fail_if_exist:
+                _LOG.error('Image: %s:%s already existed', image, tag)
+                return False
+            return True
+        # TODO: Missing X-Registry-Auth – base64-encoded AuthConfig object, containing either login information, or a toke
+        create_image_resp = self.session.post(
+            self.endpoint + '/images/create?fromImage=%s&tag=%s' % (image, tag),
+            auth=self._get_auth(), headers=self._init_header()
+        )
+        self._debug(create_image_resp)
+        if create_image_resp.status_code not in (200, 201):
+            _LOG.error('Pull image failed, status: %s  -  %s', create_image_resp.status_code, create_image_resp.content.decode())
+            return False
+        return True
+
+    # TODO: Should separate between docker and hyper. Hyper seems not support filter by tag
+    def check_image_available(self, image, tag='latest'):
+        repo_tag = '%s:%s' % (image, tag)
+        _LOG.info('List images then filter image %s', repo_tag)
+        images_list_resp = self.session.get(
+            self.endpoint + '/images/json',
+            auth=self._get_auth(), headers=self._init_header()
+        )
+        self._debug(images_list_resp)
+        if images_list_resp.status_code not in (200, 201):
+            _LOG.error('GET /containers/ failed, status: %s  -  %s', images_list_resp.status_code, images_list_resp.content.decode())
+            return False, None
+        images = [di for di in images_list_resp.json() if repo_tag in di['RepoTags']]
+        return not images
+
     def get_containers(self, state=None, image=None):
         _LOG.info('List containers by state %s, image %s', state, image)
         containers_list_resp = self.session.get(
