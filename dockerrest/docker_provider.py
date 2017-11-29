@@ -122,7 +122,7 @@ class IDockerProvider(ABC):
             post_dict['Env'] = ['%s=%s' % (k, v) for (k, v) in environment_variables.items()]
         if cmd:
             post_dict['Cmd'] = cmd
-        post_dict['HostConfig'] = {}
+        post_dict['HostConfig'] = {'NetworkMode': 'bridge'}
         if tcp_ports:
             post_dict['HostConfig']['PortBindings'] = {"%s/tcp" % p: [{"HostPort": str(p)}] for p in tcp_ports}
         if links:
