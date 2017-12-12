@@ -22,14 +22,15 @@ class HypershClient(IDockerProvider):
     }
 
     def __init__(self, loop=None, endpoint='', access_key='', secret_key='', region=''):
+        region = region.strip() or os.getenv('HYPERSH_REGION', 'eu-central-1')
         endpoint = endpoint.strip() or self._ENDPOINTS.get(region)
         if not endpoint:
-            raise Exception('Invalid region: %s' % region)
+            raise AttributeError('Invalid region: %s' % region)
         super().__init__(loop, endpoint)
         self.access_key = access_key.strip() or os.getenv('HYPERSH_ACCESS_KEY')
         self.secret_key = secret_key.strip() or os.getenv('HYPERSH_SECRET')
-        self.region = region.strip() or os.getenv('HYPERSH_REGION', 'eu-central-1')
-        self.hyper_auth = AWS4Auth(self.access_key, self.secret_key, self.region, "hyper")
+        self.region = region
+        self.hyper_auth = AWS4Auth(self.access_key, self.secret_key, self.region, 'hyper')
         self.__config_hypersh_cli(self.loop)
 
     def _get_auth(self):
