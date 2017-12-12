@@ -22,14 +22,15 @@ class HypershClient(IDockerProvider):
     }
 
     def __init__(self, loop=None, endpoint='', access_key='', secret_key='', region=''):
-        access_key = access_key.strip() or os.getenv('HYPERSH_ACCESS_KEY')
-        secret_key = secret_key.strip() or os.getenv('HYPERSH_SECRET')
-        region = region.strip() or os.getenv('HYPERSH_REGION', 'eu-central-1')
         endpoint = endpoint.strip() or self._ENDPOINTS.get(region)
         if not endpoint:
             raise Exception('Invalid region: %s' % region)
-        self.hyper_auth = AWS4Auth(access_key, secret_key, region, "hyper")
         super().__init__(loop, endpoint)
+        self.access_key = access_key.strip() or os.getenv('HYPERSH_ACCESS_KEY')
+        self.secret_key = secret_key.strip() or os.getenv('HYPERSH_SECRET')
+        self.region = region.strip() or os.getenv('HYPERSH_REGION', 'eu-central-1')
+        self.hyper_auth = AWS4Auth(self.access_key, self.secret_key, self.region, "hyper")
+        self.__config_hypersh_cli(self.loop)
 
     def _get_auth(self):
         return self.hyper_auth
@@ -83,15 +84,22 @@ class HypershClient(IDockerProvider):
         cli += ' '.join(['--link %s' % link for link in links]) + ' ' if links else ''
         cli += '%s %s' % (image, cmd if cmd else '')
         _LOG.debug('CLI to start container: %s', cli)
-        success, out, err = self.loop.run_until_complete(self.sys_call_async(shlex.split(cli)))
+        success, out, err = self.__sys_call(self.loop, cli)
         if not success:
             _LOG.error('Create HyperSH Container failed, status: %s  -  %s', success, err)
             return success, err
         return success, out
 
-    async def sys_call_async(self, command):
-        proc = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        await proc.wait()
-        stdout, stderr = await proc.communicate()
-        success = proc.returncode == 0
-        return success, stdout.decode(), stderr.decode()
+    def __config_hypersh_cli(self, loop):
+        success, _, err = self.__sys_call(loop, 'hyper config --accesskey %s --secretkey %s --default-region %s'
+                                          % (self.access_key, self.secret_key, self.region))
+        if not success:
+            _LOG.warning('HyperSH configuration failed, status: %s  -  %s', success, err)
+
+    def __sys_call(self, loop, command):
+        async def __call_async(_command):
+            proc = await asyncio.create_subprocess_exec(*_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            await proc.wait()
+            stdout, stderr = await proc.communicate()
+            return proc.returncode == 0, stdout.decode(), stderr.decode()
+        return loop.run_until_complete(__call_async(shlex.split(command)))

@@ -1,6 +1,8 @@
+import os
 import unittest
-from dockerrest.docker_provider import factory, IDockerProvider
+
 from dockerrest.docker_client import DockerClient
+from dockerrest.docker_provider import IDockerProvider, factory
 from dockerrest.hypersh import HypershClient
 
 
@@ -16,7 +18,7 @@ class TestDockerProvider(unittest.TestCase):
         self.assertEqual('172.28.128.6:2375', provider.endpoint)
 
     def test_hypersh_client(self):
-        provider = factory('hypersh')
+        provider = factory('hypersh', access_key=os.getenv('HYPERSH_ACCESS_KEY'), secret_key=os.getenv('HYPERSH_SECRET'))
         self.assertTrue(isinstance(provider, HypershClient))
         self.assertTrue(isinstance(provider, IDockerProvider))
         self.assertFalse(isinstance(provider, DockerClient))
