@@ -22,13 +22,13 @@ class HypershClient(IDockerProvider):
     }
 
     def __init__(self, loop=None, endpoint='', access_key='', secret_key='', region=''):
-        region = region.strip() or os.getenv('HYPERSH_REGION', 'eu-central-1')
-        endpoint = endpoint.strip() or self._ENDPOINTS.get(region)
+        region = region or os.getenv('HYPERSH_REGION', 'eu-central-1')
+        endpoint = endpoint or self._ENDPOINTS.get(region)
         if not endpoint:
             raise AttributeError('Invalid region: %s' % region)
         super().__init__(loop, endpoint)
-        self.access_key = access_key.strip() or os.getenv('HYPERSH_ACCESS_KEY')
-        self.secret_key = secret_key.strip() or os.getenv('HYPERSH_SECRET')
+        self.access_key = access_key or os.getenv('HYPERSH_ACCESS_KEY')
+        self.secret_key = secret_key or os.getenv('HYPERSH_SECRET')
         self.region = region
         self.hyper_auth = AWS4Auth(self.access_key, self.secret_key, self.region, 'hyper')
         self.__config_hypersh_cli(self.loop)
@@ -92,8 +92,8 @@ class HypershClient(IDockerProvider):
         return success, out
 
     def __config_hypersh_cli(self, loop):
-        success, _, err = self.__sys_call(loop, 'hyper config --accesskey %s --secretkey %s --default-region %s'
-                                          % (self.access_key, self.secret_key, self.region))
+        cli = 'hyper config --accesskey %s --secretkey %s --default-region %s' % (self.access_key, self.secret_key, self.region)
+        success, _, err = self.__sys_call(loop, cli)
         if not success:
             _LOG.warning('HyperSH configuration failed, status: %s  -  %s', success, err)
 
@@ -103,4 +103,6 @@ class HypershClient(IDockerProvider):
             await proc.wait()
             stdout, stderr = await proc.communicate()
             return proc.returncode == 0, stdout.decode(), stderr.decode()
+        if loop.is_running():
+            return asyncio.ensure_future(__call_async(shlex.split(command)), loop=loop).result()
         return loop.run_until_complete(__call_async(shlex.split(command)))

@@ -1,4 +1,6 @@
 import os
+import asyncio
+import sys
 import unittest
 
 from dockerrest.docker_client import DockerClient
@@ -16,7 +18,7 @@ class CreateContainerTest(unittest.TestCase):
         self.assertFalse(isinstance(provider, DockerClient))
         env = {'SE_OPTS': '-id firefox-ba1c22ddd1', 'NODE_APPLICATION_NAME': 'firefox-ba1c22ddd1'}
         success, container_id = provider.create_container('selenium/node-firefox', name='firefox-ba1c22ddd1',
-                                                          size='M2', env_vars=env, links=['ddf5cf840c9d:hub'])
+                                                          size='M2', env_vars=env, links=['48f3b2803252:hub'])
         print(container_id)
         self.assertTrue(success)
 
