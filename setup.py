@@ -30,7 +30,7 @@ for item in requirements:
 
 setup(
     name="dockerrest",
-    version="0.1.0",
+    version="0.1.1",
     author='ross|zero',
     author_email='digiology@gmail.com|sontt246@gmail.com',
     license="MIT",
