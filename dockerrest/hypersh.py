@@ -1,8 +1,12 @@
 #!/usr/bin/python
 
+import asyncio
+import asyncio.subprocess
 import datetime
 import logging
 import os
+import shlex
+import sys
 
 from .aws4auth2.aws4auth_hypersh import AWS4Auth
 from .docker_client import IDockerProvider
@@ -17,7 +21,7 @@ class HypershClient(IDockerProvider):
         'eu-central-1': "https://eu-central-1.hyper.sh/v1.23",
     }
 
-    def __init__(self, endpoint='', access_key='', secret_key='', region=''):
+    def __init__(self, loop=None, endpoint='', access_key='', secret_key='', region=''):
         access_key = access_key.strip() or os.getenv('HYPERSH_ACCESS_KEY')
         secret_key = secret_key.strip() or os.getenv('HYPERSH_SECRET')
         region = region.strip() or os.getenv('HYPERSH_REGION', 'eu-central-1')
@@ -25,7 +29,7 @@ class HypershClient(IDockerProvider):
         if not endpoint:
             raise Exception('Invalid region: %s' % region)
         self.hyper_auth = AWS4Auth(access_key, secret_key, region, "hyper")
-        super().__init__(endpoint)
+        super().__init__(loop, endpoint)
 
     def _get_auth(self):
         return self.hyper_auth
@@ -64,3 +68,30 @@ class HypershClient(IDockerProvider):
         if attach_resp.status_code not in (200, 201):
             return False
         return True
+
+    def create_container(self, image, name=None, size='M2', env_vars=None, cmd=None, tcp_ports=None, links=[]):
+        if not links:
+            return super().create_container(image, name=name, size=size, env_vars=env_vars, cmd=cmd, tcp_ports=tcp_ports, links=[])
+        _LOG.info('Hypersh create Container with links via CLI: Image %s - Name %s', image, name)
+        env_vars = env_vars or {}
+        tcp_ports = tcp_ports or []
+        cli = 'hyper run -d '
+        cli += '--name %s ' % name if name else ''
+        cli += '--size %s ' % size if size else ''
+        cli += ' '.join(['-e %s="%s"' % (k, v) for (k, v) in env_vars.items()]) + ' ' if env_vars else ''
+        cli += ' '.join(['-p %s:%s' % port for port in tcp_ports]) + ' ' if tcp_ports else ''
+        cli += ' '.join(['--link %s' % link for link in links]) + ' ' if links else ''
+        cli += '%s %s' % (image, cmd if cmd else '')
+        _LOG.debug('CLI to start container: %s', cli)
+        success, out, err = self.loop.run_until_complete(self.sys_call_async(shlex.split(cli)))
+        if not success:
+            _LOG.error('Create HyperSH Container failed, status: %s  -  %s', success, err)
+            return success, err
+        return success, out
+
+    async def sys_call_async(self, command):
+        proc = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        await proc.wait()
+        stdout, stderr = await proc.communicate()
+        success = proc.returncode == 0
+        return success, stdout.decode(), stderr.decode()

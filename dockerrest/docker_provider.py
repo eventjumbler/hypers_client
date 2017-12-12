@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import sys
 from abc import ABC, abstractmethod
 
 import requests
@@ -6,20 +8,33 @@ import requests
 _LOG = logging.getLogger(__name__)
 
 
-def factory(mode, endpoint='', access_key='', secret_key='', region=''):
+def factory(mode, loop=None, endpoint='', access_key='', secret_key='', region=''):
     _LOG.info('Mode: %s | Endpoint: %s', mode, endpoint)
     from .docker_client import DockerClient
     from .hypersh import HypershClient
     if mode == DockerClient.identifier():
-        return DockerClient(endpoint=endpoint)
+        return DockerClient(loop=loop, endpoint=endpoint)
     if mode == HypershClient.identifier():
-        return HypershClient(endpoint=endpoint, access_key=access_key, secret_key=secret_key, region=region)
+        return HypershClient(loop=loop, endpoint=endpoint, access_key=access_key, secret_key=secret_key, region=region)
     raise TypeError('Not found docker client for provider %s' % mode)
+
+
+def _init_loop():
+    if sys.platform == "win32":
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+    else:
+        loop = asyncio.get_event_loop()
+    return loop
 
 
 class IDockerProvider(ABC):
 
-    def __init__(self, endpoint):
+    def __init__(self, loop, endpoint):
+        if loop:
+            self.loop = loop
+        else:
+            self.loop = _init_loop()
         self.endpoint = endpoint
         self.session = requests.Session()
         super().__init__()
@@ -110,16 +125,16 @@ class IDockerProvider(ABC):
             return False
         return True
 
-    def create_container(self, image, name=None, size='M2', environment_variables=None, cmd=None, tcp_ports=None, links=[]):
+    def create_container(self, image, name=None, size='M2', env_vars=None, cmd=None, tcp_ports=None, links=[]):
         _LOG.info('Create Container: Image %s - Name %s', image, name)
-        environment_variables = environment_variables or {}
+        env_vars = env_vars or {}
         tcp_ports = tcp_ports or []
         query_str = '?name=' + name if name else ''
         post_dict = {'Image': image, 'Labels': {'sh_hyper_instancetype': size}}
         if name:
             post_dict['Hostname'] = name
-        if environment_variables:
-            post_dict['Env'] = ['%s=%s' % (k, v) for (k, v) in environment_variables.items()]
+        if env_vars:
+            post_dict['Env'] = ['%s=%s' % (k, v) for (k, v) in env_vars.items()]
         if cmd:
             post_dict['Cmd'] = cmd
         post_dict['HostConfig'] = {'NetworkMode': 'bridge'}
