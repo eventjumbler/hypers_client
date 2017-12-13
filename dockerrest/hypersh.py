@@ -101,11 +101,8 @@ class HypershClient(IDockerProvider):
             await proc.wait()
             stdout, stderr = await proc.communicate()
             return proc.returncode == 0, stdout.decode(), stderr.decode()
-
-        coros = asyncio.gather(__call_async(shlex.split(command)), loop=loop)
-        if loop.is_running():
-            _LOG.debug('Loop is running')
-            _LOG.debug(coros.result())
-            return coros.result()
         _LOG.debug(command)
+        if loop.is_running():
+            _LOG.debug('Loop is running. Init new one')
+            return asyncio.new_event_loop().run_until_complete(__call_async(shlex.split(command)))
         return loop.run_until_complete(__call_async(shlex.split(command)))
