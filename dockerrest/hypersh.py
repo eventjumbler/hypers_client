@@ -1,12 +1,10 @@
 #!/usr/bin/python
-
 import asyncio
-import asyncio.subprocess
 import datetime
 import logging
 import os
 import shlex
-import sys
+from asyncio.subprocess import PIPE
 
 from .aws4auth2.aws4auth_hypersh import AWS4Auth
 from .docker_client import IDockerProvider
@@ -99,10 +97,15 @@ class HypershClient(IDockerProvider):
 
     def __sys_call(self, loop, command):
         async def __call_async(_command):
-            proc = await asyncio.create_subprocess_exec(*_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_exec(*_command, stdout=PIPE, stderr=PIPE)
             await proc.wait()
             stdout, stderr = await proc.communicate()
             return proc.returncode == 0, stdout.decode(), stderr.decode()
+
+        coros = asyncio.gather(__call_async(shlex.split(command)), loop=loop)
         if loop.is_running():
-            return asyncio.ensure_future(__call_async(shlex.split(command)), loop=loop).result()
+            _LOG.debug('Loop is running')
+            _LOG.debug(coros.result())
+            return coros.result()
+        _LOG.debug(command)
         return loop.run_until_complete(__call_async(shlex.split(command)))
