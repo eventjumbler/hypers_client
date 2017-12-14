@@ -108,7 +108,7 @@ class HypershClient(IDockerProvider):
             return asyncio.new_event_loop().run_until_complete(__call_async(shlex.split(command)))
         return loop.run_until_complete(__call_async(shlex.split(command)))
 
-    def __sys_call(self, command, shell=False):
+    def __sys_call(self, command, shell=True):
         _LOG.debug(command)
         proc = Popen(command, stdout=PIPE, stderr=PIPE, shell=shell, universal_newlines=True)
         stdout, stderr = proc.communicate()
