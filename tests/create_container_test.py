@@ -16,7 +16,7 @@ class CreateContainerTest(unittest.TestCase):
         self.assertFalse(isinstance(provider, DockerClient))
         env = {'SE_OPTS': '-id firefox-ba1c22ddd1', 'NODE_APPLICATION_NAME': 'firefox-ba1c22ddd1'}
         success, container_id = provider.create_container('selenium/node-firefox', name='firefox-ba1c22ddd1',
-                                                          size='M2', env_vars=env, links=['7011f8d6aa32:hub'])
+                                                          size='M2', env_vars=env, links=['3dec0d836cbc:hub'])
         print(container_id)
         self.assertTrue(success)
         print(provider.remove_container('firefox-ba1c22ddd1'))

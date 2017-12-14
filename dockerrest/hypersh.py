@@ -4,7 +4,8 @@ import datetime
 import logging
 import os
 import shlex
-from asyncio.subprocess import PIPE
+# from asyncio.subprocess import PIPE
+from subprocess import Popen, PIPE, STDOUT
 
 from .aws4auth2.aws4auth_hypersh import AWS4Auth
 from .docker_client import IDockerProvider
@@ -83,7 +84,7 @@ class HypershClient(IDockerProvider):
         cli += ' '.join(['--link %s' % link for link in links]) + ' ' if links else ''
         cli += '%s %s' % (image, cmd if cmd else '')
         _LOG.debug('CLI to start container: %s', cli)
-        success, out, err = self.__sys_call(self.loop, cli)
+        success, out, err = self.__sys_call(cli)
         if not success:
             _LOG.error('Create HyperSH Container failed, status: %s  -  %s', success, err)
             return success, err
@@ -91,11 +92,11 @@ class HypershClient(IDockerProvider):
 
     def __config_hypersh_cli(self, loop):
         cli = 'hyper config --accesskey %s --secretkey %s --default-region %s' % (self.access_key, self.secret_key, self.region)
-        success, _, err = self.__sys_call(loop, cli)
+        success, _, err = self.__sys_call(cli)
         if not success:
             _LOG.warning('HyperSH configuration failed, status: %s  -  %s', success, err)
 
-    def __sys_call(self, loop, command):
+    def __async_sys_call(self, loop, command):
         async def __call_async(_command):
             proc = await asyncio.create_subprocess_exec(*_command, stdout=PIPE, stderr=PIPE)
             await proc.wait()
@@ -106,3 +107,10 @@ class HypershClient(IDockerProvider):
             _LOG.debug('Loop is running. Init new one')
             return asyncio.new_event_loop().run_until_complete(__call_async(shlex.split(command)))
         return loop.run_until_complete(__call_async(shlex.split(command)))
+
+    def __sys_call(self, command, shell=False):
+        _LOG.debug(command)
+        proc = Popen(command, stdout=PIPE, stderr=PIPE, shell=shell, universal_newlines=True)
+        stdout, stderr = proc.communicate()
+        stdout, stderr = stdout if isinstance(stdout, str) else stdout.decode(), stderr if isinstance(stderr, str) else stderr.decode()
+        return proc.returncode == 0, stdout.strip(), stderr.strip()

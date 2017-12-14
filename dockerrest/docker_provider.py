@@ -29,6 +29,7 @@ def _init_loop():
 
 
 class IDockerProvider(ABC):
+    # TODO: THINK ABOUT WORKER PROCESS WITH EVENT LOOP
 
     def __init__(self, loop, endpoint):
         if loop:
